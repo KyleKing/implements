@@ -128,13 +128,20 @@ def verify_method_type(method_typer, expected_type,
             )
     return errors
 
+from typing import Protocol
+class ProtocolInterface(Protocol):
+    pass
 
 def verify_methods(interface_cls, cls):
     def methods_predicate(m):
         return inspect.isfunction(m) or inspect.ismethod(m)
 
     errors = []
-    for name, method in inspect.getmembers(interface_cls, methods_predicate):
+    excluded_names = dir(ProtocolInterface)
+    members = inspect.getmembers(interface_cls, methods_predicate)
+    filtered_members = [(name, method) for name, method in members if name not in excluded_names]
+    # for name, method in inspect.getmembers(interface_cls, methods_predicate):
+    for name, method in filtered_members:
         signature = inspect.signature(method)
         cls_method = getattr(cls, name, None)
         cls_signature = None
@@ -208,6 +215,7 @@ def verify_attributes(interface_cls, cls):
     errors = []
     interface_attributes = get_attributes(interface_cls)
     cls_attributes = get_attributes(cls)
+
     for missing_attr in interface_attributes - cls_attributes:
         errors.append(
             "'{}' must have class attribute '{}' defined in interface '{}'"
@@ -219,4 +227,4 @@ def verify_attributes(interface_cls, cls):
 def get_attributes(cls):
     boring = dir(type('dummy', (object,), {}))
     return set(item[0] for item in inspect.getmembers(cls)  # skipcq: PTC-W0015
-               if item[0] not in boring and not callable(item[1]))
+               if item[0] not in boring and not callable(item[1]) and item[0] not in dir(ProtocolInterface))
